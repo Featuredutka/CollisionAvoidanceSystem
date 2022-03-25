@@ -28,6 +28,7 @@ tf.logging.set_verbosity(tf.logging.ERROR)
 url='http://192.168.88.23:8080/stream?topic=/camera/rgb/image_raw&width=640&height=480&quality=50'
 
 
+
 def send_data (data):
     conn.send(data)
     print('Data sent: ' + data.decode())
@@ -45,29 +46,41 @@ def receive_data():
 
 connectionIsOpen = False
 conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
+conn.connect(('192.168.88.23', 7777))
+time.sleep(1)
 # connectionIsOpen = True
 # receive_thread = threading.Thread(target=receive_data)
 # receive_thread.start()
 
-
+def arm_def_pos(): #TODO Add arm lua script call to position it for further work
+    pass
 
 def left_slip():
-    conn.connect(('192.168.88.23', 7777))
+    send_data(b'LUA_Base(0,0.2,0)^^^')
     time.sleep(1)
-    send_data(b'LUA_Base(0,0.5,0)^^^')
-    time.sleep(1)
-    conn.shutdown(socket.SHUT_RDWR)
-    conn.close()
+    send_data(b'LUA_Base(0,0,0)^^^')
     
-
 def right_slip():
-    conn.connect(('192.168.88.23', 7777))
+    send_data(b'LUA_Base(0,-0.2,0)^^^')
     time.sleep(1)
-    send_data(b'LUA_Base(0,-0.5,0)^^^')
+    send_data(b'LUA_Base(0,0,0)^^^')
+   
+def forward_movement():
+    send_data(b'LUA_Base(0.2,0,0)^^^')
     time.sleep(1)
-    conn.shutdown(socket.SHUT_RDWR)
-    conn.close()
+    send_data(b'LUA_Base(0,0,0)^^^')
+
+def backward_movement():
+    send_data(b'LUA_Base(-0.2,0,0)^^^')
+    time.sleep(1)
+    send_data(b'LUA_Base(0,0,0)^^^')
+
+def infinite_forward():
+    send_data(b'LUA_Base(0.2,0,0)^^^')
+
+def stop():
+    send_data(b'LUA_Base(0,0,0)^^^')
+
 
 
 class DetectorAPI:
@@ -127,7 +140,6 @@ if __name__ == "__main__":
         image = cv2.imread(args.input)
         image = imutils.resize(image,width=720)
         boxes, scores, classes, num = odapi.processFrame(image)
-
         # for i in range(len(boxes)):
         if classes[i] == 1 and scores[i] > threshold:
             box = boxes[i]
@@ -156,13 +168,21 @@ if __name__ == "__main__":
             client.enqueue_buffer(b)
 
         client.start()
-
+        g_area = 0
         r_i = 0
         l_i = 0
         x_pos = 500
         # time.sleep(7)
+        infinite_forward()
+        moving = False
         while True:
-
+            if g_area < 70000 and not moving:
+                infinite_forward()
+                moving = True
+            if g_area > 70000 and moving:
+                stop()
+                moving = False
+                
             buf = client.dequeue_buffer()
             test_buf = client.dequeue_buffer()
             client.enqueue_buffer(test_buf)
@@ -175,13 +195,11 @@ if __name__ == "__main__":
             # print(type(image))
             # image = imutils.resize(image,width=720)
             boxes, scores, classes, num = odapi.processFrame(image)
-
             
             client.enqueue_buffer(buf)
-            
-
 
             for i in range(len(boxes)):
+                
                 if classes[i] == 1 and scores[i] > threshold:
                     box = boxes[i]
                     cv2.rectangle(image,(box[1],box[0]),(box[3],box[2]),(134,235,52),2)
@@ -201,20 +219,43 @@ if __name__ == "__main__":
                     
                     if (l_i == 17):
                         r_i = 0
+                        l_i = 0
                         print('left')
                         left_slip()
                         cv2.putText(image, '  Person moving left'+str(round(scores[i],2)), (box[1],box[0]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (225,255,225), 1)
                     if (r_i == 17):
                         l_i = 0
+                        r_i = 0
                         print('right')
                         right_slip()
                         cv2.putText(image, '  Person moving right'+str(round(scores[i],2)), (box[1],box[0]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (225,255,225), 1)
-            
+                    area = ((box[3]-box[1]) * (box[2]-box[0]))
+                    g_area = area
+                    # print(box[3], box[1], box[2], box[0],box[3]-box[1], box[2]-box[0], box[3]-box[1] * box[2]-box[0])
+                    print(area)
+                        
+                # print(f"Movement status: {moving}")
             cv2.imshow("preview", image)
             key = cv2.waitKey(1)
 
             
 
+            if key & 0xFF == ord('a'):
+                left_slip()
+
+            if key & 0xFF == ord('d'):
+                right_slip()
+
+            if key & 0xFF == ord('w'):
+                forward_movement()
+
+            if key & 0xFF == ord('s'):
+                backward_movement()
 
             if key & 0xFF == ord('q'):
                 break
+
+    stop()
+    conn.shutdown(socket.SHUT_RDWR)
+    conn.close()
+    
