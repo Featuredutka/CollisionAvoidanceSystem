@@ -1,18 +1,9 @@
-import argparse
-parser = argparse.ArgumentParser(description='person detection v1.0')
-parser.add_argument("input", help="Input image file name")
-parser.add_argument("-s","--save", help="Save processed image",action="store_true")
-parser.add_argument("-m","--mode", help="Select mode 1-image, 2-video",default="1")
-args = parser.parse_args()
-
-print("person detection v1.0, loading..")
-
-import numpy as np
-import tensorflow.compat.v1 as tf
+import os
 import cv2
 import time
 import imutils
-import os
+import numpy as np
+import tensorflow.compat.v1 as tf
 
 import io
 from PIL import Image
@@ -25,60 +16,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 tf.logging.set_verbosity(tf.logging.ERROR)
 tf.logging.set_verbosity(tf.logging.ERROR)
 
-url='http://192.168.88.23:8080/stream?topic=/camera/rgb/image_raw&width=640&height=480&quality=50'
-
-def send_data (data):
-    conn.send(data)
-    print('Data sent: ' + data.decode())
-
-def receive_data():
-    data = ''
-    while connectionIsOpen:
-        rcvd_data = conn.recv(1)
-        if rcvd_data.decode() == '\n':
-            # print(data)
-            data = ''
-        else:
-            data += rcvd_data.decode()
-
-
-connectionIsOpen = False
-conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-conn.connect(('192.168.88.23', 7777))
-time.sleep(1)
-# connectionIsOpen = True
-# receive_thread = threading.Thread(target=receive_data)
-# receive_thread.start()
-
-def arm_def_pos(): #TODO Add arm lua script call to position it for further work
-    pass
-
-def left_slip():
-    send_data(b'LUA_Base(0.2,0.2,0)^^^')
-    time.sleep(1)
-    send_data(b'LUA_Base(0,0,0)^^^')
-    
-def right_slip():
-    send_data(b'LUA_Base(0.2,-0.2,0)^^^')
-    time.sleep(1)
-    send_data(b'LUA_Base(0,0,0)^^^')
-   
-def forward_movement():
-    send_data(b'LUA_Base(0.2,0,0)^^^')
-    time.sleep(1)
-    send_data(b'LUA_Base(0,0,0)^^^')
-
-def backward_movement():
-    send_data(b'LUA_Base(-0.2,0,0)^^^')
-    time.sleep(1)
-    send_data(b'LUA_Base(0,0,0)^^^')
-
-def infinite_forward():
-    send_data(b'LUA_Base(0.2,0,0)^^^')
-
-def stop():
-    send_data(b'LUA_Base(0,0,0)^^^')
-
+URL='http://192.168.88.23:8080/stream?topic=/camera/rgb/image_raw&width=640&height=480&quality=50'
 
 
 class DetectorAPI:
@@ -127,52 +65,84 @@ class DetectorAPI:
         self.sess.close()
         self.default_graph.close()
 
+
+def send_data (data):
+    conn.send(data)
+    print('Data sent: ' + data.decode())
+
+def receive_data():
+    data = ''
+    while connectionIsOpen:
+        rcvd_data = conn.recv(1)
+        if rcvd_data.decode() == '\n':
+            # print(data)
+            data = ''
+        else:
+            data += rcvd_data.decode()
+
+def arm_def_pos(): #TODO Add arm lua script call to position it for further work
+    send_data(b'LUA_ManipDeg(0, 160, 61, -139, 177, 169)^^^')
+
+def left_slip():
+    send_data(b'LUA_Base(0.2,0.2,0)^^^')
+    time.sleep(1)
+    send_data(b'LUA_Base(0,0,0)^^^')
+    
+def right_slip():
+    send_data(b'LUA_Base(0.2,-0.2,0)^^^')
+    time.sleep(1)
+    send_data(b'LUA_Base(0,0,0)^^^')
+   
+def forward_movement():
+    send_data(b'LUA_Base(0.2,0,0)^^^')
+    time.sleep(1)
+    send_data(b'LUA_Base(0,0,0)^^^')
+
+def backward_movement():
+    send_data(b'LUA_Base(-0.2,0,0)^^^')
+    time.sleep(1)
+    send_data(b'LUA_Base(0,0,0)^^^')
+
+def infinite_forward():
+    send_data(b'LUA_Base(0.2,0,0)^^^')
+
+def stop():
+    send_data(b'LUA_Base(0,0,0)^^^')
+
+
+connectionIsOpen = False
+conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+conn.connect(('192.168.88.23', 7777))
+time.sleep(1)
+
+
 if __name__ == "__main__":
     model_path = './model.pb'
     odapi = DetectorAPI(path_to_ckpt=model_path)
     threshold = 0.7
 
-    if int(args.mode) == 1:
-        print('image mode')
-        image = cv2.imread(args.input)
-        image = imutils.resize(image,width=720)
-        boxes, scores, classes, num = odapi.processFrame(image)
-        # for i in range(len(boxes)):
-        if classes[i] == 1 and scores[i] > threshold:
-            box = boxes[i]
-            cv2.rectangle(image,(box[1],box[0]),(box[3],box[2]),(134,235,52),2)
-            cv2.rectangle(image, (box[1],box[0]-30),(box[1]+125,box[0]),(134,235,52), thickness=cv2.FILLED)
-            cv2.putText(image, '  Person '+str(round(scores[i],2)), (box[1],box[0]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (225,255,225), 1)
-
-        cv2.imshow("preview", image)
-        if args.save:
-            print("saving...")
-            cv2.imwrite("processed-"+args.input,image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-    if int(args.mode) == 2:
+    if True:
         
-        # cap = cv2.VideoCapture(url)
-        # cap.set(cv2.CAP_PROP_FPS,10)
-        # print(type(cap))
+        client = MJPEGClient(URL)
 
-        # # Create a new client thread
-        client = MJPEGClient(url)
-
-        # # Allocate memory buffers for frames
         bufs = client.request_buffers(65536, 50)
         for b in bufs:
             client.enqueue_buffer(b)
 
         client.start()
+
         res_area = 0
         g_area = 0
+
         r_i = 0
         l_i = 0
+
         x_pos = 500
 
         moving = False
+
         while True:
+
             res_area = g_area
 
             if g_area < 70000 and not moving:
@@ -186,35 +156,27 @@ if __name__ == "__main__":
             test_buf = client.dequeue_buffer()
             client.enqueue_buffer(test_buf)
             image = Image.open(io.BytesIO(buf.data))
-             # print(type(image))
             image = np.array(image) 
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            # image = cv2.resize(image, dsize=(640, 480), interpolation=cv2.INTER_CUBIC)
-            # r, image = cap.read()
-            # print(type(image))
-            # image = imutils.resize(image,width=720)
+
             boxes, scores, classes, num = odapi.processFrame(image)
             
             client.enqueue_buffer(buf)
 
             for i in range(len(boxes)):
-                
                 if classes[i] == 1 and scores[i] > threshold:
                     box = boxes[i]
                     cv2.rectangle(image,(box[1],box[0]),(box[3],box[2]),(134,235,52),2)
                     cv2.rectangle(image, (box[1],box[0]-30),(box[1]+125,box[0]),(134,235,52), thickness=cv2.FILLED)
                     cv2.putText(image, '  Person '+str(round(scores[i],2)), (box[1],box[0]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (225,255,225), 1)
-                    
                     buffer = box[1]
+
                     if (buffer < x_pos-10):
                         r_i += 1
                         x_pos = buffer
                     elif (buffer > x_pos+10):
                         l_i += 1
                         x_pos = buffer
-
-                    # x_pos = buffer
-                    # print(r_i, l_i, x_pos, buffer)
                     
                     if (l_i == 17):
                         r_i = 0
@@ -222,24 +184,23 @@ if __name__ == "__main__":
                         print('left')
                         left_slip()
                         cv2.putText(image, '  Person moving left'+str(round(scores[i],2)), (box[1],box[0]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (225,255,225), 1)
+
                     if (r_i == 17):
                         l_i = 0
                         r_i = 0
                         print('right')
                         right_slip()
                         cv2.putText(image, '  Person moving right'+str(round(scores[i],2)), (box[1],box[0]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (225,255,225), 1)
-                    g_area = ((box[3]-box[1]) * (box[2]-box[0]))
                     
-                    # print(box[3], box[1], box[2], box[0],box[3]-box[1], box[2]-box[0], box[3]-box[1] * box[2]-box[0])
-                    print(g_area)
-            if res_area == g_area:
+                    g_area = ((box[3]-box[1]) * (box[2]-box[0]))
+                    print(f"Calculated box square: {g_area}")
+
+            if res_area == g_area and not moving: #TODO Check if not moving part prevents command from looping and helps
                 infinite_forward()
                 moving = True
-                # print(f"Movement status: {moving}")
+
             cv2.imshow("preview", image)
             key = cv2.waitKey(1)
-
-            
 
             if key & 0xFF == ord('a'):
                 left_slip()
@@ -256,8 +217,6 @@ if __name__ == "__main__":
             if key & 0xFF == ord('q'):
                 break
             
-            
-
     stop()
     conn.shutdown(socket.SHUT_RDWR)
     conn.close()
