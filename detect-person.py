@@ -27,8 +27,6 @@ tf.logging.set_verbosity(tf.logging.ERROR)
 
 url='http://192.168.88.23:8080/stream?topic=/camera/rgb/image_raw&width=640&height=480&quality=50'
 
-
-
 def send_data (data):
     conn.send(data)
     print('Data sent: ' + data.decode())
@@ -56,12 +54,12 @@ def arm_def_pos(): #TODO Add arm lua script call to position it for further work
     pass
 
 def left_slip():
-    send_data(b'LUA_Base(0,0.2,0)^^^')
+    send_data(b'LUA_Base(0.2,0.2,0)^^^')
     time.sleep(1)
     send_data(b'LUA_Base(0,0,0)^^^')
     
 def right_slip():
-    send_data(b'LUA_Base(0,-0.2,0)^^^')
+    send_data(b'LUA_Base(0.2,-0.2,0)^^^')
     time.sleep(1)
     send_data(b'LUA_Base(0,0,0)^^^')
    
@@ -129,7 +127,6 @@ class DetectorAPI:
         self.sess.close()
         self.default_graph.close()
 
-
 if __name__ == "__main__":
     model_path = './model.pb'
     odapi = DetectorAPI(path_to_ckpt=model_path)
@@ -168,14 +165,16 @@ if __name__ == "__main__":
             client.enqueue_buffer(b)
 
         client.start()
+        res_area = 0
         g_area = 0
         r_i = 0
         l_i = 0
         x_pos = 500
-        # time.sleep(7)
-        infinite_forward()
+
         moving = False
         while True:
+            res_area = g_area
+
             if g_area < 70000 and not moving:
                 infinite_forward()
                 moving = True
@@ -229,11 +228,13 @@ if __name__ == "__main__":
                         print('right')
                         right_slip()
                         cv2.putText(image, '  Person moving right'+str(round(scores[i],2)), (box[1],box[0]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (225,255,225), 1)
-                    area = ((box[3]-box[1]) * (box[2]-box[0]))
-                    g_area = area
+                    g_area = ((box[3]-box[1]) * (box[2]-box[0]))
+                    
                     # print(box[3], box[1], box[2], box[0],box[3]-box[1], box[2]-box[0], box[3]-box[1] * box[2]-box[0])
-                    print(area)
-                        
+                    print(g_area)
+            if res_area == g_area:
+                infinite_forward()
+                moving = True
                 # print(f"Movement status: {moving}")
             cv2.imshow("preview", image)
             key = cv2.waitKey(1)
@@ -254,6 +255,8 @@ if __name__ == "__main__":
 
             if key & 0xFF == ord('q'):
                 break
+            
+            
 
     stop()
     conn.shutdown(socket.SHUT_RDWR)
