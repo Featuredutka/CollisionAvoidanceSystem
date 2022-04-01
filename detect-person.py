@@ -11,6 +11,7 @@ from mjpeg.client import MJPEGClient
 
 import socket
 import threading
+from multiprocessing import Process
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 tf.logging.set_verbosity(tf.logging.ERROR)
@@ -81,9 +82,10 @@ def receive_data():
             data += rcvd_data.decode()
 
 def arm_def_pos(): #TODO Add arm lua script call to position it for further work
-    send_data(b'LUA_ManipDeg(0, 160, 61, -139, 177, 169)^^^')
+    send_data(b'LUA_ManipDeg(0, 166, 61, -139, 177, 169)^^^')
 
 def left_slip():
+    
     send_data(b'LUA_Base(0.2,0.2,0)^^^')
     time.sleep(1)
     send_data(b'LUA_Base(0,0,0)^^^')
@@ -141,6 +143,8 @@ if __name__ == "__main__":
 
         moving = False
 
+        procs = []
+
         while True:
 
             res_area = g_area
@@ -182,14 +186,20 @@ if __name__ == "__main__":
                         r_i = 0
                         l_i = 0
                         print('left')
-                        left_slip()
+                        # left_slip()
+                        l_s = Process(target=left_slip)
+                        l_s.start()
+                        procs.append(l_s)
                         cv2.putText(image, '  Person moving left'+str(round(scores[i],2)), (box[1],box[0]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (225,255,225), 1)
 
                     if (r_i == 17):
                         l_i = 0
                         r_i = 0
                         print('right')
-                        right_slip()
+                        # right_slip()
+                        r_s = Process(target=right_slip)
+                        r_s.start()
+                        procs.append(r_s)
                         cv2.putText(image, '  Person moving right'+str(round(scores[i],2)), (box[1],box[0]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (225,255,225), 1)
                     
                     g_area = ((box[3]-box[1]) * (box[2]-box[0]))
@@ -213,11 +223,18 @@ if __name__ == "__main__":
 
             if key & 0xFF == ord('s'):
                 backward_movement()
+            
+            if key & 0xFF == ord('p'):
+                arm_def_pos()
 
             if key & 0xFF == ord('q'):
                 break
+
+            
             
     stop()
     conn.shutdown(socket.SHUT_RDWR)
     conn.close()
+    for _ in procs:
+                _.join()
     
