@@ -1,6 +1,0 @@
-imutils==0.5.4
-numpy==1.22.2
-opencv_python==4.5.5.64
-Pillow==9.0.1
-py_mjpeg==1.0.0
-tensorflow==2.6.3
