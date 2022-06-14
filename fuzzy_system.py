@@ -1,7 +1,10 @@
 import numpy as np
 import skfuzzy as fuzz
 from skfuzzy import control as ctrl
+import matplotlib as mp
+import matplotlib.pyplot as plt
 
+mp.use("QtCairo")
 # INPUT VARIABLES
 person_dist = ctrl.Antecedent(np.arange(50, 101, 1),'person_dist') #40000 to 100000 
 robot_speed = ctrl.Antecedent(np.arange(0, 1.01, 0.01), 'robot_speed') # Consider lower upper limit???
@@ -53,8 +56,8 @@ sign_det['yes'] = fuzz.trimf(sign_det.universe, [2, 2, 10000])
 #OUTPUTS
 # Desired robot speed
 drs['stop'] = fuzz.trimf(robot_speed.universe, [-10000, 0.0, 0.0])
-drs['low'] = fuzz.trimf(robot_speed.universe, [0.01, 0.2, 0.4])
-drs['moderate'] = fuzz.trimf(robot_speed.universe, [0.3, 0.45, 0.6])
+drs['low'] = fuzz.trimf(robot_speed.universe, [0.01, 0.1, 0.2])
+drs['moderate'] = fuzz.trimf(robot_speed.universe, [0.2, 0.4, 0.6])
 drs['fast'] = fuzz.trimf(robot_speed.universe, [0.5, 0.6, 10000])
 # Desired robot direction
 drd['hl'] = fuzz.trimf(drd.universe, [-10000, 0.2, 0.3])
@@ -102,5 +105,7 @@ def fuz_reg(p_dist: int, p_dir: float, r_relpos: float, sign_det: int) -> list:
     tipping.input['sign_det'] = sign_det
 
     tipping.compute()
+    print(drs)
+    # drs.view(sim=tipping)
 
     return [tipping.output['desired_Direction'], tipping.output['desired_Speed']]

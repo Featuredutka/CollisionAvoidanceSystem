@@ -3,6 +3,7 @@ import socket
 import cv2 as cv
 
 import drone as dp
+import sign_det as ds
 import detect_lane as dl
 import fuzzy_system as fs
 import situation_rules as sr
@@ -38,15 +39,15 @@ def mild_right():
     time.sleep(1)
     send_data(b'LUA_Base(0,0,0)^^^')
 
-def right_slip():
-    send_data(b'LUA_Base(0.2,-0.2,0)^^^')
+def right_slip(conn):
+    send_data(b'LUA_Base(0,-0.2,0)^^^', conn)
     time.sleep(1)
-    send_data(b'LUA_Base(0,0,0)^^^')
+    send_data(b'LUA_Base(0,0,0)^^^', conn)
 
-def left_slip():
-    send_data(b'LUA_Base(0.2,-0.2,0)^^^')
+def left_slip(conn):
+    send_data(b'LUA_Base(0,0.2,0)^^^', conn)
     time.sleep(1)
-    send_data(b'LUA_Base(0,0,0)^^^')
+    send_data(b'LUA_Base(0,0,0)^^^', conn)
    
 def forward_movement():
     send_data(b'LUA_Base(0.2,0,0)^^^')
@@ -101,6 +102,7 @@ def main():
     x_pos = 500
 
     while True:
+        is_detected = 1
 
         _, frame = cap.read()
 
@@ -109,53 +111,60 @@ def main():
         p_dist = (100000 - ((x2-x1) * (y2-y1)))/1000
         p_dir = 2
         buffer = x1
+        #########################3333333333333333333333333333333333333
+        frame1, amount = ds.find_sign(frame1)
 
+        if (amount):
+            is_detected = 2
+        print(amount)
         #################################################################### 2
         try:
-            frame2, left, right = dl.process(frame)
-            # print(left, right)
-            cv.imshow("DISPLAY WINDOW", frame2)
+            frame2, left, right = dl.process(frame1)
+            # print(left[0], right[0])
+            cv.imshow("DISPLAY WINDOW", cv.bitwise_not(frame2))
         except:
             cv.imshow("DISPLAY WINDOW", frame1)
         finally:
-            r_relpos = 0.5
+            r_relpos = left[0]
 
         #################################################################### 3 ZAGLUSHKA
-        is_detected = 0
+        
 
         #################################################################### SITUATIONAL
-        if (buffer < x_pos-2):
+        if (buffer <= x_pos-10):
             r_i += 1
             x_pos = buffer
-        elif (buffer > x_pos+2):
+        elif (buffer >= x_pos+10):
             l_i += 1
             x_pos = buffer
         
-        if (l_i == 17):
+        if (l_i == 17) and left[0] < 230:
             r_i = 0
             l_i = 0
             print('left')
+            left_slip(conn) 
             p_dir = 0
             
-        if (r_i == 17):
+        if (r_i == 17) and right[0] > 475:
             l_i = 0
             r_i = 0
             print('right')
+            right_slip(conn)
             p_dir = 2
 
         sit = sr.define_situation(buffer, p_dir)
-
-        print(sit)
+        # if (left[0] < )
+        # print(sit)
 
         #################################################################### REGULATOR
         dir_com, speed_com = fs.fuz_reg(p_dist, p_dir, r_relpos, is_detected)
-        # print(dir_com, type(speed_com.item()))
+        print(dir_com, speed_com.item())
         # print(buffer)
 
         ################################################################### COMAND INTERPRETATOR
         command = "LUA_Base(" + str(round(speed_com.item(), 1)) + ",0,0)^^^"
         b = command.encode('utf-8')
-        # send_data(b, conn)
+        send_data(b, conn)
         key = cv.waitKey(1)
 
         if key & 0xFF == ord('q'):    
