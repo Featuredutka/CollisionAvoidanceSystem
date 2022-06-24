@@ -82,14 +82,14 @@ def main():
         1.2) Human direction
     2) Lane detector
         2.1) Robot relative position
-    3) Sign detector TODO
+    3) Sign detector 
         3.1) Sign detection check
 
-    All this info goes into the fuzzy regulator which returns 2 values TODO
+    All this info goes into the fuzzy regulator which returns 2 values 
     1) Robot desired speed
     2) RObot desired direction
 
-    This info should be translated into commands for YouBot TODO
+    This info should be translated into commands for YouBot 
     """
 
     #TODO Since infinite loop is here maybe I ned to calculate direction here as well
@@ -116,7 +116,7 @@ def main():
 
         if (amount):
             is_detected = 2
-        print(amount)
+        print(p_dist)
         #################################################################### 2
         try:
             frame2, left, right = dl.process(frame1)
@@ -158,11 +158,17 @@ def main():
 
         #################################################################### REGULATOR
         dir_com, speed_com = fs.fuz_reg(p_dist, p_dir, r_relpos, is_detected)
-        print(dir_com, speed_com.item())
+        print(speed_com.item())
+        if speed_com.item() < 0.1:
+            command = "LUA_Base(" + str(0) + ",0,0)^^^" 
+        elif speed_com.item() < 0.5:
+            command = "LUA_Base(" + str(0.1) + ",0,0)^^^"
+        else:
+            command = "LUA_Base(" + str(0.3) + ",0,0)^^^"
         # print(buffer)
-
+        print(command)
         ################################################################### COMAND INTERPRETATOR
-        command = "LUA_Base(" + str(round(speed_com.item(), 1)) + ",0,0)^^^"
+        # command = "LUA_Base(" + str(round(speed_com.item(), 1)) + ",0,0)^^^"
         b = command.encode('utf-8')
         send_data(b, conn)
         key = cv.waitKey(1)
