@@ -1,7 +1,7 @@
 # BasicCollisionAvoidanceSystem
 A bachelor's graduation project for KUKA YouBot made with Pytorch 
 
-![alt text](https://github.com/Featuredutka/senior_thesis/blob/main/demonstration.png)
+![alt text](https://github.com/Featuredutka/senior_thesis/blob/main/demo.png)
 
 ### Features:
 - Detecting people and road signs (crosswalk) for preventive braking and stopping
